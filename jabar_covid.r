@@ -91,5 +91,64 @@ ggplot(new_cov_jabar, aes(tanggal, meninggal)) +
   ) +
   theme(plot.title.position = "plot")
 
-  library(dplyr)
+
+# Weekly Data Aggregation (Data Analysis)
+library(dplyr)
 library(lubridate)
+
+cov_jabar_pekanan <- new_cov_jabar %>% 
+  count(
+    tahun = year(tanggal),
+    pekan_ke = week(tanggal),
+    wt = kasus_baru,
+    name = "jumlah"
+  )
+
+glimpse(cov_jabar_pekanan)
+
+# Case Comparison
+library(dplyr)
+cov_jabar_pekanan <-
+  cov_jabar_pekanan %>% 
+  mutate(
+    jumlah_pekanlalu = dplyr::lag(jumlah, 1),
+    jumlah_pekanlalu = ifelse(is.na(jumlah_pekanlalu), 0, jumlah_pekanlalu),
+    lebih_baik = jumlah < jumlah_pekanlalu
+  )
+glimpse(cov_jabar_pekanan)
+
+library(ggplot2)
+library(hrbrthemes)
+
+# Weekly Case Comparison with Color Highlight
+ggplot(cov_jabar_pekanan[cov_jabar_pekanan$tahun==2020,],aes(pekan_ke, jumlah, fill=lebih_baik)) + geom_col(show.legend = FALSE) + scale_x_continuous(breaks = 9:29, expand = c(0, 0)) + scale_fill_manual(values = c("TRUE" = "seagreen3", "FALSE" = "salmon")) + labs(
+x = NULL,
+y = "Jumlah kasus",
+title = "Kasus Pekanan Positif COVID-19 di Jawa Barat",
+subtitle = "Kolom hijau menunjukan penambahan kasus baru lebih sedikit dibandingkan satu pekan sebelumnya",
+caption = "Sumber data: covid.19.go.id") +
+theme_ipsum(
+base_size = 13,
+plot_title_size = 21,
+grid = "Y",
+ticks = TRUE) +
+theme(plot.title.position = "plot")
+
+
+# Data Conclusion and Accumulated Data
+library(dplyr)
+cov_jabar_akumulasi <- 
+  new_cov_jabar %>% 
+  transmute(
+    tanggal,
+    akumulasi_aktif = cumsum(kasus_baru) - cumsum(sembuh) - cumsum(meninggal),
+    akumulasi_sembuh = cumsum(sembuh),
+    akumulasi_meninggal = cumsum(meninggal)
+  )
+
+tail(cov_jabar_akumulasi)
+
+# Data Visualization
+library(ggplot2)
+ggplot(data = cov_jabar_akumulasi, aes(x = tanggal, y = akumulasi_aktif)) +
+  geom_line()
